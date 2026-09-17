@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {Simulation} from '../dist/engine.js';
+const advance=(s,seconds)=>{for(let i=0;i<seconds*60;i++)s.step()};
+test('food is approached and consumed',()=>{const s=new Simulation();advance(s,9);assert.equal(s.objects.filter(o=>o.kind==='food').length,0)});
+test('light activates its channel and orientation',()=>{const s=new Simulation();s.objects=[];s.light=true;advance(s,.5);assert.equal(s.reason,'light');assert.ok(s.sensors.light>.6)});
+test('touch must hit the fly and decays in simulation time',()=>{const s=new Simulation();assert.match(s.place('touch',0,0),/не попало/);assert.equal(s.touch,null);s.place('touch',s.fly.x-10,s.fly.y);advance(s,.3);assert.equal(s.reason,'touch');assert.ok(s.sensors.touch>.5);advance(s,3);assert.ok(s.sensors.touch<.01)});
+test('moving object activates the anatomical visual edge and escape',()=>{const s=new Simulation();s.objects=[];s.place('object',s.fly.x+80,s.fly.y);advance(s,.5);assert.equal(s.reason,'escape');assert.ok(s.dn>.2);assert.ok(s.objects[0].x>500)});
+test('predator drives escape',()=>{const s=new Simulation();s.objects=[];s.predator=true;s.hunter={x:s.fly.x+90,y:s.fly.y};advance(s,.5);assert.equal(s.reason,'escape')});
+test('temperature raises thermal channel and modifies speed',()=>{const a=new Simulation(),b=new Simulation();a.objects=[];b.objects=[];b.temperature=40;advance(a,1);advance(b,1);assert.ok(b.sensors.heat>.9);assert.ok(b.fly.speed<a.fly.speed)});
+test('obstacle and boundary collisions never penetrate over long run',()=>{const s=new Simulation();s.place('obstacle',300,230);s.place('obstacle',760,380);s.predator=true;for(let i=0;i<18000;i++){s.step();assert.ok(!s.blocked(s.fly.x,s.fly.y,11.9));for(const v of [...Object.values(s.sensors),...Object.values(s.motor),s.dn])assert.ok(v>=0&&v<=1);assert.ok(Number.isFinite(s.fly.turn))}});
+test('turn is derived from displayed motor rates, reset is deterministic',()=>{const a=new Simulation(),b=new Simulation();advance(a,2);assert.equal(a.fly.turn,(a.motor.left-a.motor.right)*4);a.reset();advance(a,3);advance(b,3);assert.deepEqual(a.fly,b.fly)});
+test('invalid placement is rejected without mutation and erase works',()=>{const s=new Simulation();const n=s.objects.length;assert.throws(()=>s.place('food',NaN,40));assert.throws(()=>s.place('invalid',20,20));assert.equal(s.objects.length,n);s.place('erase',740,205);assert.equal(s.objects.length,n-1)});

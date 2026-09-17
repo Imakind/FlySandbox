@@ -1,0 +1,5 @@
+research/
+.playwright-mcp/
+.sites-runtime/
+node_modules/
+*.tar.gz
